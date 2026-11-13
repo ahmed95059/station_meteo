@@ -1,0 +1,158 @@
+mode: hardware
+station_number: 1
+device: Dev1
+interval_seconds: 1.0
+save_seconds: 10.0
+sample_rate_hz: 5000
+sample_count: 1000
+peak_window_seconds: 30
+peak_threshold_kmh: 30.0
+timezone: Europe/Paris
+sensors:
+  temperature:
+    enabled: true
+    kind: voltage
+    channel: ai6
+    terminal: null
+    terminal_config: RSE
+    edge: FALLING
+    calibrated: true
+    scale: 100.0
+    offset: -273.0
+    unit: °C
+    quantity: physical
+    min_voltage: -10.0
+    max_voltage: 10.0
+    ml_per_pulse: null
+    collector_cm2: null
+    poll_ms: 10
+    debounce_ms: 40
+  direction:
+    enabled: true
+    kind: voltage
+    channel: ai3
+    terminal: null
+    terminal_config: RSE
+    edge: FALLING
+    calibrated: true
+    scale: 90.0
+    offset: -45.0
+    unit: °
+    quantity: physical
+    min_voltage: -10.0
+    max_voltage: 10.0
+    ml_per_pulse: null
+    collector_cm2: null
+    poll_ms: 10
+    debounce_ms: 40
+  wind:
+    enabled: true
+    kind: counter
+    channel: ctr0
+    terminal: PFI0
+    terminal_config: RSE
+    edge: FALLING
+    calibrated: true
+    scale: 2.4
+    offset: 0.0
+    unit: km/h
+    quantity: physical
+    min_voltage: -10.0
+    max_voltage: 10.0
+    ml_per_pulse: null
+    collector_cm2: null
+    poll_ms: 10
+    debounce_ms: 40
+  rain:
+    enabled: true
+    kind: digital
+    channel: port0/line7
+    terminal: null
+    terminal_config: RSE
+    edge: FALLING
+    calibrated: true
+    scale: null
+    offset: 0.0
+    unit: mL
+    quantity: physical
+    min_voltage: -10.0
+    max_voltage: 10.0
+    ml_per_pulse: null
+    collector_cm2: null
+    poll_ms: 10
+    debounce_ms: 40
+  humidity:
+    enabled: true
+    kind: frequency
+    channel: ai2
+    terminal: null
+    terminal_config: RSE
+    edge: FALLING
+    calibrated: true
+    scale: -1.3333333333
+    offset: 133.33333333
+    unit: '% surface'
+    quantity: surface_wetness
+    min_voltage: -10.0
+    max_voltage: 10.0
+    ml_per_pulse: null
+    collector_cm2: null
+    poll_ms: 10
+    debounce_ms: 40
+  light:
+    enabled: true
+    kind: voltage
+    channel: ai7
+    terminal: null
+    terminal_config: RSE
+    edge: FALLING
+    calibrated: true
+    scale: 20.833333333333332
+    offset: 0.0
+    unit: '%'
+    quantity: physical
+    min_voltage: -10.0
+    max_voltage: 10.0
+    ml_per_pulse: null
+    collector_cm2: null
+    poll_ms: 10
+    debounce_ms: 40
+  counter:
+    enabled: true
+    kind: digital
+    channel: port1/line0:3
+    terminal: null
+    terminal_config: RSE
+    edge: FALLING
+    calibrated: true
+    scale: null
+    offset: 0.0
+    unit: ''
+    quantity: physical
+    min_voltage: -10.0
+    max_voltage: 10.0
+    ml_per_pulse: null
+    collector_cm2: null
+    poll_ms: 10
+    debounce_ms: 40
+alarms:
+  seasonal: true
+  temperature:
+    low: 0.0
+    high: 35.0
+  seasons:
+    hiver:
+      low: -5.0
+      high: 18.0
+    printemps:
+      low: 2.0
+      high: 28.0
+    ete:
+      low: 10.0
+      high: 35.0
+    automne:
+      low: 0.0
+      high: 25.0
+  rain:
+    low: null
+    high: null

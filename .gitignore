@@ -1,0 +1,11 @@
+.venv/
+.runtime/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+data/*.db*
+data/*.lock
+data/*.json
+data/*.png
+data/browser-test.yaml
+.coverage
