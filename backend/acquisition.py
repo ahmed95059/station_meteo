@@ -4,7 +4,7 @@ import threading
 import time
 from statistics import mean
 
-from .sensors import frequency
+from .sensors import decode_encoder, frequency
 
 
 def inventory():
@@ -115,7 +115,7 @@ class NIAcquisition:
                 else:
                     self.encoder = nidaqmx.Task()
                     self.tasks.append(self.encoder)
-                    self.encoder.di_channels.add_di_chan(full, line_grouping=LineGrouping.CHAN_FOR_ALL_LINES)
+                    self.encoder.di_channels.add_di_chan(full, line_grouping=LineGrouping.CHAN_PER_LINE)
             if self.analog:
                 self.analog.timing.cfg_samp_clk_timing(settings.sample_rate_hz, sample_mode=AcquisitionType.FINITE,
                                                       samps_per_chan=settings.sample_count)
@@ -149,7 +149,10 @@ class NIAcquisition:
                 raise RuntimeError(self.rain_poller.error)
             result["raw"]["rain"] = {"value": self.rain_poller.count, "unit": "impulsions"}
         if self.encoder:
-            result["raw"]["counter"] = {"value": int(self.encoder.read(timeout=2)), "unit": "entier"}
+            lines = self.encoder.read(timeout=2)
+            result["raw"]["counter"] = {
+                "value": decode_encoder(lines, self.settings.sensors["counter"]),
+                "unit": "entier", "lines": [bool(value) for value in lines]}
         return result
 
     def close(self):

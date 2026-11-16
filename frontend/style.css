@@ -5,3 +5,11 @@
 @media(max-width:900px){.sidebar{position:static;width:auto;padding:15px 20px;display:block}.brand{display:inline-flex}.nav-label,.sidebar-bottom{display:none}nav{display:flex;overflow:auto;gap:5px;margin-top:15px}nav a{padding:8px 10px;white-space:nowrap;font-size:11px}nav a>span:first-child{font-size:16px;width:14px}main{margin:0}.topbar{height:50px}.content{padding:24px}.page-heading{align-items:flex-start}h1{font-size:26px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.topbar-right{gap:10px}.breadcrumb{font-size:9px}}
 @media(max-width:600px){.content{padding:20px 14px}.topbar{padding:0 14px}.topbar-right #clock{display:none}.page-heading{flex-direction:column;gap:12px}.eyebrow{font-size:8px}.source-banner{flex-wrap:wrap}.source-banner button{margin:5px 0 0 34px}.source-banner div{flex:1;min-width:200px}.overview-grid,.charts-grid,.stats-grid,.sensor-settings{grid-template-columns:1fr}.station-panel{grid-column:auto}.section-heading{align-items:flex-start}.section-heading>span{font-size:9px;text-align:right;max-width:150px}.card-heading{flex-wrap:wrap}.card-heading label{width:100%}.history-chart{height:280px}.metric-value{font-size:27px}.metric{min-height:165px}.period-controls label{flex-basis:40%}.period-controls label:nth-child(2){max-width:none}.station-panel .leds{display:flex;margin:12px 0}.station-panel code{margin:0}footer{gap:10px;flex-direction:column}.settings-actions{align-items:flex-start;flex-direction:column}.settings-actions .button{white-space:normal}.comfort-row small{font-size:8px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+fieldset{border:1px solid var(--line);border-radius:8px;margin:16px 0 0;padding:16px;min-width:0}
+legend{color:var(--accent);padding:0 8px;font-size:12px}
+.chart-box,.history-chart{position:relative}
+.chart-message{position:absolute;inset:15% 8% auto;text-align:center;color:var(--muted);font-size:12px;background:var(--panel);padding:12px;pointer-events:none}
+.danger-panel{margin-top:25px;border-color:#794650}
+.button.danger{background:#542d35;color:#ffd6d6;border-color:#a95b65}
+.station-panel .led{width:16px;height:16px}

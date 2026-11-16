@@ -62,14 +62,16 @@ def test_missing_sensor_and_restart_do_not_invent_alarm_time(tmp_path):
     assert alarms[0]["duration"] == 0
 
 
-def test_rain_low_and_high(tmp_path):
+@pytest.mark.parametrize("unit,sensor", [("mL", "rain_ml"), ("mm", "rain_mm"), ("impulsions", "rain_count")])
+def test_rain_low_and_high(tmp_path, unit, sensor):
     db=Database(tmp_path/"weather.db")
     settings=load_config()
+    settings.alarms.rain_unit=unit
     settings.alarms.rain.low=5
     settings.alarms.rain.high=20
     manager=AlarmManager(db,settings)
     now=datetime.now(timezone.utc)
     base={"station":1,"source":"simulation","temperature":None}
-    manager.process(dict(base,timestamp=now.isoformat(),rain_ml=0))
-    manager.process(dict(base,timestamp=(now+timedelta(seconds=1)).isoformat(),rain_ml=30))
+    manager.process(dict(base,timestamp=now.isoformat(),**{sensor:0}))
+    manager.process(dict(base,timestamp=(now+timedelta(seconds=1)).isoformat(),**{sensor:30}))
     assert {a["type"] for a in db.alarms("simulation",1)} == {"low","high"}

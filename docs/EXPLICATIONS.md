@@ -54,6 +54,10 @@ Pour ce modèle et cette référence, `scale=100` et `offset=-273`. La relation 
 
 ### Girouette
 
+La configuration actuelle utilise les tensions fournies par l'utilisateur : **N = 3,5 V ; E = 0 V ; S = 1 V ; O = 4 V**. Ces points ne suivent pas une loi linéaire. En mode `table`, la direction correspond au point étalonné le plus proche, avec une tolérance réglable (0,2 V initialement). Une tension hors tolérance ou exactement équidistante de deux points reste indéterminée. Les points NE, SE, SO et NO peuvent être ajoutés dans les paramètres après mesure : aucune direction intermédiaire n'est inventée.
+
+Le mode linéaire reste disponible pour un autre capteur, avec inversion de sens et correction du nord réglables. Les champs coefficient/décalage et inversion sont utilisés uniquement dans ce mode.
+
 Le TP1 indique 0,5–4,5 V, mais ne suffit pas à garantir le zéro mécanique. Si, après vérification, 0,5 V correspond à 0° et 4,5 V à 360° :
 
 ```text
@@ -64,7 +68,7 @@ angle = (U - 0,5) × 360 / (4,5 - 0,5) = 90 × U - 45
 
 ### Humectation et fréquence
 
-**Le capteur du TP2 détecte l'eau en surface. Son pourcentage n'est pas une humidité relative de l'air.** Il est donc nommé « humectation de surface ».
+**Le capteur du TP2 détecte l'eau en surface. Son pourcentage n'est pas une humidité relative de l'air.** Il est donc nommé « humectation de surface `.
 
 Le signal rectangulaire est échantillonné à 5000 Hz. Une fenêtre de 1000 points dure 0,2 s : elle couvre environ 5 périodes à 25 Hz et 20 périodes à 100 Hz. `frequency` recherche les franchissements montants du seuil de 2 V et calcule :
 
@@ -109,21 +113,27 @@ Exemple : 20 mL sur 200 cm² → 1 mm.
 
 La première lecture sert de référence ; on n'attribue pas arbitrairement les anciens coups de compteur à la période courante. Une remise à zéro ajoute au plus les impulsions lues depuis le zéro. Un retour de la borne haute d'un compteur 32 bits est traité comme un débordement. Sans journal matériel, il est impossible de connaître les impulsions perdues pendant une déconnexion ou avant une remise à zéro externe ; le programme ne les invente pas.
 
-Le cumul est conservé dans SQLite par source, station et coefficient mL/impulsion. Il ne redémarre pas à minuit : la pluie d'une période s'obtient en sommant `rain_delta_ml`. Les seuils d'alarme portent sur le **cumul mL**, comme indiqué dans l'interface. Un seuil bas est facultatif (`null`) pour éviter une alarme permanente à sec. Le coefficient fictif 2,5 mL et la surface fictive 200 cm² du simulateur ne deviennent jamais des paramètres matériels.
+Le cumul est conservé dans SQLite par source, station et coefficient mL/impulsion. Il ne redémarre pas à minuit : la pluie d'une période s'obtient en sommant `rain_delta_ml`. Les seuils d'alarme portent sur le **cumul dans l'unité choisie**, comme indiqué dans l'interface. Un seuil bas est facultatif (`null`) pour éviter une alarme permanente à sec. Le coefficient fictif 2,5 mL et la surface fictive 200 cm² du simulateur ne deviennent jamais des paramètres matériels.
 
 Le cours place le contact pluie sur P0.7. Il n'est pas garanti qu'un second compteur matériel soit disponible à côté de celui du vent. Le mode `digital`, à 10 ms avec anti-rebond de 40 ms, est prévu pour les contacts lents. Les impulsions trop courtes ou très rapprochées peuvent être perdues : ce mode n'est pas un comptage temps réel garanti sous Windows. Utiliser un compteur matériel si la carte et le câblage le permettent.
 
+L'affichage et les seuils d'alarme se choisissent en **impulsions, mL ou mm**, avec un seuil bas et un seuil haut indépendamment désactivables. La configuration matérielle utilise les impulsions tant que le volume n'est pas étalonné. Pour obtenir ce coefficient, faire passer un volume connu et le diviser par le nombre de bascules observées. Les mm nécessitent aussi la surface de collecte. À sec, l'ajout vaut zéro et le cumul reste stable ; les cumuls en impulsions et en volume sont conservés au redémarrage. Le compteur brut reste dans `raw.rain.value` ; `rain_count` désigne désormais le cumul d'impulsions de la station. Les anciennes archives ne sont pas réécrites.
+
 ### Lumière et station
 
-Le pourcentage de luminosité du TP est une échelle relative, pas des lux. Avec des références vérifiées de 0 et 4,8 V, un exemple de coefficient est `100/4.8`, en unité `%`. Ne pas déclarer des lux sans étalonnage photométrique. Les valeurs hors 0–100 % sont signalées.
+Le pourcentage de luminosité du TP est une échelle relative, pas des lux. Pour le montage signalé où la tension augmente avec l'obscurité, la conversion appliquée est `100 - 100 × U / 4,8`, en unité `%` : 0 V donne 100 %, 4,8 V donne 0 %. Les deux extrémités restent à contrôler sur le matériel. Ne pas déclarer des lux sans étalonnage photométrique. Les valeurs hors 0–100 % sont signalées.
 
-Le numéro logique de station (0 à 65535) est un identifiant de stockage modifiable. Sa représentation sur 16 bits commande les LED virtuelles. L'encodeur physique du cours (port1, lignes 0–3) ou un compteur NI peut être lu dans le module `counter` : sa valeur reste séparée pour éviter de modifier silencieusement l'identité de l'archive.
+L'encodeur est lu sur quatre lignes indépendantes : ligne 0 = poids 1, ligne 1 = poids 2, ligne 2 = poids 4, ligne 3 = poids 8. Les quatre LED virtuelles affichent ses bits, du poids 8 au poids 1. Le codage binaire/Gray, l'inversion des contacts et l'ordre des fils sont réglables. Avec le suivi activé, **station = encodeur + 1** : 0 → station 1, 12 → station 13, 15 → station 16. Le numéro configuré sert de secours avant la première lecture et en simulation ; après une perte de lecture, la dernière identité connue est conservée.
+
+Un changement de station vide le lot précédent, interrompt ses alarmes, termine sa fenêtre de pic et charge le cumul propre à la nouvelle station. Les historiques suivent par défaut la station active ; décocher ce suivi pour consulter une autre station.
 
 ## 5. Alarmes et durées
 
 Un dépassement strict (`< low` ou `> high`) ouvre un épisode. L'égalité au seuil n'est pas un dépassement. Le passage sous le seuil ou au-dessus du seuil bas ferme l'épisode. Acquitter enregistre seulement que l'utilisateur l'a vu : l'épisode continue tant que la condition existe.
 
 L'estimation de durée utilise le temps entre acquisitions successives. Si T=31 °C à t=0, T=32 °C à t=1 et T=29 °C à t=2 avec un seuil de 30 °C, l'épisode observé dure 2 s. La résolution reste celle du cycle d'acquisition, pas celle d'une mesure continue. Une mesure manquante termine l'observation à la dernière mesure valide. Un redémarrage interrompt l'épisode à `last_seen` : aucune durée ne s'ajoute pendant l'arrêt du PC. Les écarts de cycle sont bornés à deux périodes pour éviter de compter une longue pause logicielle comme une observation continue.
+
+Les paramètres distinguent les deux seuils fixes des deux seuils de chacune des quatre saisons. Le tableau de bord indique les seuils appliqués et la durée de l'épisode thermique en cours. Les statistiques donnent le temps hors limites total et sa répartition par saison de début d'épisode ; les nouveaux épisodes sont séparés aux changements de saison. Les durées restent celles observées avec les seuils en vigueur au moment de l'acquisition.
 
 Les saisons sont météorologiques : hiver décembre–février, printemps mars–mai, été juin–août, automne septembre–novembre. La date est évaluée dans le fuseau configuré. Les seuils fournis sont des exemples pédagogiques modifiables, pas des recommandations météorologiques officielles.
 
@@ -139,15 +149,19 @@ SQLite est une base locale contenue dans `data/weather.db`. Les tables sont cré
 | `stations` | Numéros logiques déjà enregistrés. |
 | `settings` | Configuration active, versions identifiées par `configuration_id` et points de reprise des cumuls de pluie. Le YAML reste la configuration chargée au lancement. |
 
-Par défaut, chaque acquisition est gardée (environ une par seconde) et les lots sont écrits toutes les dix secondes. Une alarme ou un pic déclenche aussi la vidange du lot. Un arrêt propre vide le dernier lot. Une coupure brutale peut perdre les acquisitions en mémoire depuis la dernière écriture, au maximum approximatif de la période configurée en fonctionnement normal. Prévoir la place disque : une année à 1 Hz représente environ 31,5 millions de lignes ; ce prototype n'implémente pas de rétention ni de partitionnement.
+La première acquisition est écrite immédiatement. Par défaut, chaque acquisition est gardée (environ une par seconde) et les lots sont écrits toutes les dix secondes. Une alarme ou un pic déclenche aussi la vidange du lot. Un arrêt propre vide le dernier lot. Une coupure brutale peut perdre les acquisitions en mémoire depuis la dernière écriture, au maximum approximatif de la période configurée en fonctionnement normal. Prévoir la place disque : une année à 1 Hz représente environ 31,5 millions de lignes ; ce prototype n'implémente pas de rétention ni de partitionnement.
 
 Les statistiques utilisent toutes les lignes enregistrées de la source et de la station choisies. Les moyennes sont des moyennes des échantillons, adaptées au cycle régulier ; ce ne sont pas des intégrations pondérées par le temps en cas de cadence très irrégulière. Les mesures physiques indisponibles sont `null`, jamais remplacées par 0.
 
-Les courbes longues sont regroupées en au plus environ 1500 points (5000 au maximum via l'API). Les moyennes de température/vent et les extrema par groupe sont renvoyés ; les pics sont interrogés séparément. Pour la direction, une moyenne **circulaire** évite de transformer 359° et 1° en 180°. Deux directions exactement opposées peuvent donner une moyenne indéterminée. Les seuils et valeurs brutes détaillés restent présents sur les périodes non regroupées et dans le CSV complet ; choisir une période plus courte pour les inspecter. Les champs bruts ne sont pas reconstruits à partir de valeurs déjà agrégées.
+Les courbes longues sont regroupées en au plus environ 1500 points (5000 au maximum via l'API). Les moyennes de température/vent et les extrema par groupe sont renvoyés ; les pics sont interrogés séparément. Pour la direction, une moyenne **circulaire** évite de transformer 359° et 1° en 180°. Deux directions exactement opposées peuvent donner une moyenne indéterminée. Les seuils et valeurs brutes détaillés restent présents sur les périodes non regroupées et dans le CSV complet ; choisir une période plus courte pour les inspecter. Les tensions/fréquences brutes de température, direction, humidité, lumière et vent sont moyennées directement depuis les bruts enregistrés ; le cumul d'impulsions utilise le maximum de chaque groupe.
 
 La rose des vents compte les observations par secteur, sans pondération par la vitesse. Chaque `payload` référence une version de configuration (`configuration_id`) conservée dans `settings` sous la clé `configuration:<identifiant>` ; les anciens coefficients restent ainsi vérifiables. Éviter de comparer des périodes d'étalonnages différents sans examiner les données brutes. Le CSV sépare les colonnes par `;` et utilise un BOM UTF-8 pour Excel.
 
 Les dates d'API doivent contenir un décalage ou `Z`. Elles sont normalisées en UTC. Le navigateur convertit les dates choisies localement vers UTC puis affiche les résultats dans son propre fuseau. Pour un rapport journalier, sélectionner de 00:00 à 23:59 du jour souhaité (ou l'intervalle précis voulu). Les bornes sont inclusives ; un export adjacent partage donc éventuellement un point de frontière.
+
+L'historique utilise par défaut une période glissante jusqu'à maintenant et se rafraîchit toutes les cinq secondes. Modifier les dates fige la période. Une mesure seule reste visible sur les courbes. Une courbe sans valeur disponible affiche un message ; en direct, une tension/fréquence brute disponible peut être affichée avec son unité explicite. Le lot en mémoire apparaît dans l'historique à sa prochaine sauvegarde.
+
+Le bouton d'effacement dans Paramètres demande de saisir `EFFACER`. L'API `DELETE /api/database?confirm=EFFACER` arrête l'acquisition, écrit le dernier lot, vide les cinq tables dans une transaction, vide la mémoire puis redémarre l'acquisition. Les paramètres YAML sont conservés ; de nouvelles lignes apparaissent après la suppression. Les mesures de production n'ont pas été effacées pendant la validation.
 
 ## 7. Bonus et leurs limites
 

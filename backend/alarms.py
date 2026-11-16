@@ -3,20 +3,33 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 
-def temperature_limits(settings, timestamp):
+def season_at(settings, timestamp):
     month = timestamp.astimezone(ZoneInfo(settings.timezone)).month
     season = "hiver" if month in (12, 1, 2) else "printemps" if month < 6 else "ete" if month < 9 else "automne"
-    return settings.alarms.seasons[season] if settings.alarms.seasonal else settings.alarms.temperature
+    return season
+
+
+def temperature_limits(settings, timestamp):
+    return settings.alarms.seasons[season_at(settings, timestamp)] if settings.alarms.seasonal else settings.alarms.temperature
+
+
+def rain_sensor(settings):
+    return {"mL": "rain_ml", "mm": "rain_mm", "impulsions": "rain_count"}[settings.alarms.rain_unit]
 
 
 class AlarmManager:
     def __init__(self, database, settings):
         self.db, self.settings = database, settings
         self.active = {}
+        self.context = None
 
     def process(self, measurement):
         now = datetime.fromisoformat(measurement["timestamp"])
-        bounds = {"temperature": temperature_limits(self.settings, now), "rain_ml": self.settings.alarms.rain}
+        context = (measurement["source"], measurement["station"], season_at(self.settings, now))
+        if self.context is not None and context != self.context:
+            self.close()
+        self.context = context
+        bounds = {"temperature": temperature_limits(self.settings, now), rain_sensor(self.settings): self.settings.alarms.rain}
         expected = {}
         for sensor, limits in bounds.items():
             value = measurement.get(sensor)

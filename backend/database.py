@@ -105,6 +105,12 @@ class Database:
                 key, value = checkpoint
                 db.execute("INSERT OR REPLACE INTO settings VALUES(?,?)", (key, json.dumps(value)))
 
+    def clear(self):
+        """Vider les données dans une seule transaction, acquisition arrêtée par le service."""
+        with self.connect() as db:
+            for table in ("measurements", "alarms", "wind_peaks", "stations", "settings"):
+                db.execute(f"DELETE FROM {table}")
+
     def set_setting(self, key, value):
         with self.connect() as db:
             db.execute("INSERT OR REPLACE INTO settings VALUES(?,?)", (key, json.dumps(value, ensure_ascii=False)))
@@ -131,11 +137,21 @@ class Database:
             fields = ','.join(f'AVG({name}) AS {name}' for name in VALUES if name not in ('rain_delta_ml', 'direction'))
             rows = db.execute(f'''SELECT MIN(timestamp) AS timestamp,{fields},
                 circular_mean(direction) AS direction,
+                MAX(json_extract(payload,'$.rain_count')) AS rain_count,
+                AVG(json_extract(payload,'$.raw.temperature.value')) AS raw_temperature,
+                AVG(json_extract(payload,'$.raw.direction.value')) AS raw_direction,
+                AVG(json_extract(payload,'$.raw.humidity.value')) AS raw_humidity,
+                AVG(json_extract(payload,'$.raw.light.value')) AS raw_light,
+                AVG(json_extract(payload,'$.raw.wind.value')) AS raw_wind,
                 SUM(rain_delta_ml) AS rain_delta_ml, MIN(temperature) AS temperature_min,
                 MAX(temperature) AS temperature_max, MAX(wind) AS wind_max
                 FROM measurements WHERE {where}
                 GROUP BY CAST((julianday(timestamp)-2440587.5)*86400/? AS INTEGER) ORDER BY timestamp''', (*args, bucket)).fetchall()
-        return {"count": count, "aggregated": True, "bucket_seconds": bucket, "items": [dict(r) for r in rows]}
+        items = [dict(r) for r in rows]
+        for row in items:
+            row["raw"] = {name: {"value": row.pop(f"raw_{name}")}
+                          for name in ("temperature", "direction", "humidity", "light", "wind")}
+        return {"count": count, "aggregated": True, "bucket_seconds": bucket, "items": items}
 
     def iter_measurements(self, start, end, source, station):
         where, args = self.where(start, end, source, station)
@@ -150,7 +166,10 @@ class Database:
             row = dict(db.execute(f'''SELECT COUNT(*) AS count,
                 AVG(temperature) AS temperature_mean, MIN(temperature) AS temperature_min,
                 MAX(temperature) AS temperature_max, AVG(wind) AS wind_mean, MAX(wind) AS wind_max,
-                SUM(rain_delta_ml) AS rain_total_ml, AVG(relative_humidity) AS relative_humidity_mean
+                SUM(rain_delta_ml) AS rain_total_ml,
+                SUM(json_extract(payload,'$.rain_delta_count')) AS rain_total_count,
+                SUM(json_extract(payload,'$.rain_delta_mm')) AS rain_total_mm,
+                AVG(relative_humidity) AS relative_humidity_mean
                 FROM measurements WHERE {where}''', args).fetchone())
             rose = [0] * 8
             for sector, count in db.execute(f'''SELECT CAST(((direction+22.5)%360)/45 AS INTEGER),COUNT(*)

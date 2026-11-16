@@ -8,6 +8,40 @@ def cardinal(degrees):
     return ("N", "NE", "E", "SE", "S", "SO", "O", "NO")[int((degrees % 360 + 22.5) // 45) % 8]
 
 
+def decode_encoder(lines, config):
+    """Ligne 0 = bit de poids faible ; les quatre états restent indépendants."""
+    if len(lines) != 4:
+        raise ValueError("L'encodeur doit utiliser exactement quatre lignes numériques.")
+    bits = [int(bool(value)) ^ int(config.encoder_active_low) for value in lines]
+    if config.encoder_reverse_bits:
+        bits.reverse()
+    value = sum(bit << i for i, bit in enumerate(bits))
+    if config.encoder_encoding == "gray":
+        gray = value
+        while gray:
+            gray >>= 1
+            value ^= gray
+    return value
+
+
+def direction_angle(value, config):
+    if value is None or not config.calibrated:
+        return None
+    if config.direction_mode == "table":
+        anchors = [(abs(value-voltage), index*45) for index, bearing in enumerate(("N","NE","E","SE","S","SO","O","NO"))
+                   if (voltage := config.direction_voltages.get(bearing)) is not None]
+        anchors.sort()
+        if not anchors or anchors[0][0] > config.direction_tolerance:
+            return None
+        if len(anchors) > 1 and math.isclose(anchors[0][0], anchors[1][0], abs_tol=1e-9):
+            return None
+        return anchors[0][1]
+    angle = linear(value, config)
+    if angle is None:
+        return None
+    return ((-angle if config.direction_reversed else angle) + config.direction_offset) % 360
+
+
 def linear(value, config):
     if value is None or not config.calibrated or config.scale is None:
         return None
@@ -36,18 +70,29 @@ def counter_delta(current, previous, bits=32):
 
 
 class RainAccumulator:
-    def __init__(self, total_ml=0):
+    def __init__(self, total_ml=0, total_pulses=0):
         self.previous = None
         self.total_ml = total_ml
+        self.total_pulses = total_pulses
+
+    @classmethod
+    def restore(cls, checkpoint):
+        return cls(**checkpoint) if isinstance(checkpoint, dict) else cls(total_ml=checkpoint)
+
+    def checkpoint(self):
+        return {"total_ml": self.total_ml, "total_pulses": self.total_pulses}
 
     def update(self, count, ml_per_pulse, collector_cm2=None):
         pulses = counter_delta(count, self.previous)
         self.previous = count
+        self.total_pulses += pulses
         delta = pulses * ml_per_pulse if ml_per_pulse else None
         if delta is not None:
             self.total_ml += delta
         total = self.total_ml if ml_per_pulse else None
-        return {"rain_delta_ml": delta, "rain_ml": total,
+        return {"rain_count": self.total_pulses, "rain_delta_count": pulses,
+                "rain_delta_ml": delta, "rain_ml": total,
+                "rain_delta_mm": delta * 10 / collector_cm2 if delta is not None and collector_cm2 else None,
                 "rain_mm": total * 10 / collector_cm2 if total is not None and collector_cm2 else None}
 
 

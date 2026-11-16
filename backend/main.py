@@ -62,7 +62,7 @@ def create_app(config_path=None, database_path=None):
         if (right-left).days > 3660:
             raise HTTPException(422, "La période maximale est de 10 ans.")
         settings = app.state.service.settings
-        return left.isoformat(), right.isoformat(), source or settings.mode, station if station is not None else settings.station_number
+        return left.isoformat(), right.isoformat(), source or settings.mode, station if station is not None else app.state.service.snapshot()["status"]["station"]
 
     @app.get("/api/status")
     def status():
@@ -117,6 +117,15 @@ def create_app(config_path=None, database_path=None):
                 raise HTTPException(503, f"Impossible d'appliquer les paramètres : {exc}") from exc
         return {"ok": True, "settings": settings.model_dump()}
 
+    @app.delete("/api/database")
+    async def clear_database(confirm: Literal["EFFACER"]):
+        async with app.state.settings_lock:
+            try:
+                await asyncio.to_thread(app.state.service.clear_database)
+            except Exception as exc:
+                raise HTTPException(503, f"Impossible d'effacer la base : {exc}") from exc
+        return {"ok": True}
+
     @app.get("/api/ni/devices")
     async def ni_devices():
         return await asyncio.to_thread(inventory)
@@ -127,7 +136,7 @@ def create_app(config_path=None, database_path=None):
                    station: int | None = Query(None, ge=0, le=65535)):
         args = scope(start, end, source, station)
         columns = ["timestamp", "station", "source", "temperature", "humidity", "humidity_kind", "relative_humidity", "light",
-                   "wind", "direction", "rain_count", "rain_ml", "rain_mm", "rain_delta_ml", "counter", "configuration_id", "raw", "quality", "units"]
+                   "wind", "direction", "rain_count", "rain_ml", "rain_mm", "rain_delta_ml", "rain_delta_mm", "rain_delta_count", "counter", "configuration_id", "raw", "quality", "units"]
 
         def generate():
             output = io.StringIO()

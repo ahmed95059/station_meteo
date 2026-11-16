@@ -43,6 +43,7 @@ def test_downsampling_keeps_stats_complete(tmp_path):
     assert len(data["items"]) <= 21
     assert db.aggregates(*args)["temperature_max"] == 199
     assert all(min(r["direction"],360-r["direction"])<2 for r in data["items"])
+    assert all(r["raw"]["temperature"]["value"] == pytest.approx(2.98) for r in data["items"])
 
 
 def test_single_instance_lock(tmp_path):

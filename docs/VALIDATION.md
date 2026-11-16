@@ -64,3 +64,9 @@ L'appel `/api/ni/devices` a renvoyé une liste vide, sans erreur de chargement N
 Restent à contrôler en laboratoire : modèle réel et nom NI MAX, brochage, niveau des tensions, terminal analogique approprié, nombre de compteurs disponibles, bornes PFI routables, durée/rebonds des contacts, coefficient volume du pluviomètre, surface de collecte, étalonnages et sens de la girouette.
 
 L'intégration NI est codée et configurable, mais sa compatibilité effective avec une maquette doit être vérifiée lors de cette mise en service. Les tests d'historique utilisent des données synthétiques ; ils ne constituent ni une acquisition annuelle réelle, ni un test d'endurance ou de capacité sur des dizaines de millions de lignes.
+
+## Corrections du 16 novembre 2026
+
+Les 57 tests Python passent. Les tests de régression couvrent les 16 positions binaires/Gray de l'encodeur, la lecture de quatre lignes NI indépendantes, les quatre références de girouette fournies par l'utilisateur, l'inversion de luminosité, la conservation des cumuls à sec et au redémarrage, les alarmes dans trois unités, l'isolation des stations, les durées par saison et l'effacement avec confirmation.
+
+Le script `tools/regression_check.py` démarre lui-même un serveur isolé sur le port 8002 et vérifie les LED, la station, les quatre directions, les courbes, les seuils, les pages étroites et l'effacement dans Edge sans fenêtre. Résultat : succès, aucune erreur JavaScript. Il utilise des bases temporaires et une doublure NI, ne lit aucun matériel et ne modifie ni la base ni la configuration de production. Les tensions de girouette sont celles communiquées par l'utilisateur ; les directions intermédiaires et le volume par bascule restent à étalonner.

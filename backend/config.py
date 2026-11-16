@@ -29,14 +29,27 @@ class SensorConfig(StrictModel):
     max_voltage: float = 10
     ml_per_pulse: float | None = Field(default=None, gt=0)
     collector_cm2: float | None = Field(default=None, gt=0)
+    direction_mode: Literal["linear", "table"] = "linear"
+    direction_voltages: dict[Literal["N", "NE", "E", "SE", "S", "SO", "O", "NO"], float | None] = Field(default_factory=dict)
+    direction_tolerance: float = Field(default=.2, gt=0, le=2)
+    direction_reversed: bool = False
+    direction_offset: float = 0
+    encoder_active_low: bool = False
+    encoder_reverse_bits: bool = False
+    encoder_encoding: Literal["binary", "gray"] = "binary"
     poll_ms: int = Field(default=10, ge=2, le=100)
     debounce_ms: int = Field(default=40, ge=0, le=2000)
 
     @model_validator(mode="after")
     def valid(self):
+        voltages = [value for value in self.direction_voltages.values() if value is not None]
+        if len(voltages) != len(set(voltages)):
+            raise ValueError("Deux directions ne peuvent pas avoir la même tension.")
+        if self.direction_mode == "table" and not voltages:
+            raise ValueError("Renseigner au moins une tension pour la girouette.")
         if self.min_voltage >= self.max_voltage:
             raise ValueError("La tension minimale doit être inférieure au maximum.")
-        if self.calibrated and self.kind != "digital" and self.scale is None and self.ml_per_pulse is None:
+        if self.calibrated and self.kind != "digital" and self.direction_mode != "table" and self.scale is None and self.ml_per_pulse is None:
             raise ValueError("Un capteur étalonné doit avoir un coefficient.")
         return self
 
@@ -58,6 +71,7 @@ class AlarmConfig(StrictModel):
     seasons: dict[str, Limits] = Field(default_factory=lambda: {
         "hiver": Limits(low=-5, high=18), "printemps": Limits(low=2, high=28),
         "ete": Limits(low=10, high=35), "automne": Limits(low=0, high=25)})
+    rain_unit: Literal["mL", "mm", "impulsions"] = "mL"
     rain: Limits = Field(default_factory=lambda: Limits(low=None, high=100))
 
     @model_validator(mode="after")
@@ -70,6 +84,8 @@ class AlarmConfig(StrictModel):
 class Settings(StrictModel):
     mode: Literal["simulation", "hardware"] = "simulation"
     station_number: int = Field(default=1, ge=0, le=65535)
+    station_from_encoder: bool = True
+    rain_display_unit: Literal["mL", "mm", "impulsions"] = "mL"
     device: str = Field(default="Dev1", pattern=r"^[A-Za-z0-9_-]+$")
     interval_seconds: float = Field(default=1, ge=1, le=60)
     save_seconds: float = Field(default=10, ge=1, le=300)
